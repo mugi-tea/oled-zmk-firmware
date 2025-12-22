@@ -1,0 +1,7 @@
+file_format: "1"
+id: oled_test
+name: OLED Test
+type: shield
+url: https://github.com/yukimorita/oled-test
+requires:
+  - seeeduino_xiao_ble
