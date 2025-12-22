@@ -1,0 +1,6 @@
+if SHIELD_OLED_TEST
+
+config ZMK_KEYBOARD_NAME
+    default "OLED Test"
+
+endif
