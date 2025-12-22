@@ -1,0 +1,45 @@
+# Copyright (c) 2024 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+if SHIELD_LUXERIA_LEFT
+
+config ZMK_KEYBOARD_NAME
+    default "Luxeria"
+
+config ZMK_SPLIT_ROLE_CENTRAL
+    default n
+
+endif
+
+if SHIELD_LUXERIA_RIGHT
+
+config ZMK_KEYBOARD_NAME
+    default "Luxeria"
+
+config ZMK_SPLIT_ROLE_CENTRAL
+    default y
+
+config INPUT
+    bool
+    default y
+
+config SPI
+    bool
+    default y
+
+config ZMK_POINTING
+    bool
+    default y
+
+config PMW3610
+    bool
+    default y
+
+endif
+
+if SHIELD_LUXERIA_LEFT || SHIELD_LUXERIA_RIGHT
+
+config ZMK_SPLIT
+    default y
+
+endif

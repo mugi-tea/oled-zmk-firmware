@@ -1,0 +1,10 @@
+file_format: "1"
+id: luxeria
+name: Luxeria
+type: shield
+url: https://github.com/yukimorita/luxeria-zmk-config
+requires:
+  - seeeduino_xiao_ble
+siblings:
+  - luxeria_left
+  - luxeria_right
