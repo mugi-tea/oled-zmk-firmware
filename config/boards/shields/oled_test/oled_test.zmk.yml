@@ -4,6 +4,6 @@ name: OLED Test
 type: shield
 url: https://github.com/user/oled-test
 requires:
-  - seeed_xiao_ble
+  - seeeduino_xiao_ble
 features:
   - keys
