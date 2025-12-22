@@ -39,12 +39,12 @@ jobs:
 
       - name: Build firmware
         run: |
-          west build -s zmk/app -b seeeduino_xiao_ble -- \
+          west build -s zmk/app -b xiao_ble -- \
             -DSHIELD=oled_test \
             -DZMK_CONFIG="${GITHUB_WORKSPACE}/config"
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: oled_test-seeeduino_xiao_ble-zmk
+          name: oled_test-xiao_ble-zmk
           path: build/zephyr/zmk.uf2
