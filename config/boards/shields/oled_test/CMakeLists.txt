@@ -1,0 +1,7 @@
+if(CONFIG_ZMK_DISPLAY)
+    target_sources(app PRIVATE custom_status_screen.c)
+    target_sources(app PRIVATE widgets/bongo_cat.c)
+    target_sources(app PRIVATE widgets/bongo_cat_images.c)
+    target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/widgets)
+endif()
