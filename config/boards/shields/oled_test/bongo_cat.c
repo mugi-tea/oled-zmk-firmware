@@ -1,5 +1,5 @@
 /*
- * Bongo Cat Widget for ZMK
+ * Bongo Cat Widget for ZMK (LVGL v9)
  */
 
 #include <zephyr/kernel.h>
@@ -84,29 +84,20 @@ static const uint8_t bongo_tap[] = {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-static lv_obj_t *cat_img;
-static lv_img_dsc_t img_dsc;
-static uint8_t img_buf[8 + 512]; // palette (8 bytes) + 128*32/8
+static lv_obj_t *canvas;
+static lv_color_t cbuf[128 * 32];
 static bool is_tapping = false;
 static bool current_is_tap = false;
 
-static void convert_to_lvgl_format(const uint8_t *src, uint8_t *dst) {
-    // Set palette: index 0 = black, index 1 = white
-    dst[0] = 0x00; dst[1] = 0x00; dst[2] = 0x00; dst[3] = 0xFF; // Black
-    dst[4] = 0xFF; dst[5] = 0xFF; dst[6] = 0xFF; dst[7] = 0xFF; // White
+static void draw_frame(const uint8_t *data) {
+    lv_canvas_fill_bg(canvas, lv_color_black(), LV_OPA_COVER);
 
-    // Convert from vertical byte format to horizontal
     for (int y = 0; y < 32; y++) {
         for (int x = 0; x < 128; x++) {
-            int src_byte = (y / 8) * 128 + x;
-            int src_bit = y % 8;
-            int dst_byte = 8 + y * 16 + x / 8;
-            int dst_bit = 7 - (x % 8);
-
-            if (src[src_byte] & (1 << src_bit)) {
-                dst[dst_byte] |= (1 << dst_bit);
-            } else {
-                dst[dst_byte] &= ~(1 << dst_bit);
+            int byte_idx = (y / 8) * 128 + x;
+            int bit_idx = y % 8;
+            if (data[byte_idx] & (1 << bit_idx)) {
+                lv_canvas_set_px(canvas, x, y, lv_color_white(), LV_OPA_COVER);
             }
         }
     }
@@ -114,13 +105,13 @@ static void convert_to_lvgl_format(const uint8_t *src, uint8_t *dst) {
 
 static void update_display(struct k_work *work) {
     if (is_tapping && !current_is_tap) {
-        convert_to_lvgl_format(bongo_tap, img_buf);
+        draw_frame(bongo_tap);
         current_is_tap = true;
-        lv_img_set_src(cat_img, &img_dsc);
+        lv_obj_invalidate(canvas);
     } else if (!is_tapping && current_is_tap) {
-        convert_to_lvgl_format(bongo_idle, img_buf);
+        draw_frame(bongo_idle);
         current_is_tap = false;
-        lv_img_set_src(cat_img, &img_dsc);
+        lv_obj_invalidate(canvas);
     }
     is_tapping = false;
 }
@@ -150,20 +141,11 @@ ZMK_SUBSCRIPTION(bongo_cat, zmk_keycode_state_changed);
 static int bongo_cat_init(void) {
     lv_obj_t *screen = lv_scr_act();
 
-    // Initialize image descriptor
-    img_dsc.header.cf = LV_IMG_CF_INDEXED_1BIT;
-    img_dsc.header.w = 128;
-    img_dsc.header.h = 32;
-    img_dsc.data_size = sizeof(img_buf);
-    img_dsc.data = img_buf;
+    canvas = lv_canvas_create(screen);
+    lv_canvas_set_buffer(canvas, cbuf, 128, 32, LV_COLOR_FORMAT_NATIVE);
+    lv_obj_center(canvas);
 
-    // Convert initial frame
-    convert_to_lvgl_format(bongo_idle, img_buf);
-
-    // Create image object
-    cat_img = lv_img_create(screen);
-    lv_img_set_src(cat_img, &img_dsc);
-    lv_obj_center(cat_img);
+    draw_frame(bongo_idle);
 
     return 0;
 }
