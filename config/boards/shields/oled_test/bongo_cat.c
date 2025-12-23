@@ -12,7 +12,7 @@
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-// 128x32 Bongo Cat frames (idle)
+// 128x32 Bongo Cat frames - idle (paws up)
 static const uint8_t bongo_idle[] = {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -84,41 +84,62 @@ static const uint8_t bongo_tap[] = {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-static lv_obj_t *cat_canvas;
-static lv_color_t cbuf[LV_CANVAS_BUF_SIZE_INDEXED_1BIT(128, 32)];
+static lv_obj_t *cat_img;
+static lv_img_dsc_t img_dsc;
+static uint8_t img_buf[8 + 512]; // palette (8 bytes) + 128*32/8
 static bool is_tapping = false;
+static bool current_is_tap = false;
 
-static void draw_bongo(const uint8_t *data) {
-    lv_canvas_fill_bg(cat_canvas, lv_color_black(), LV_OPA_COVER);
+static void convert_to_lvgl_format(const uint8_t *src, uint8_t *dst) {
+    // Set palette: index 0 = black, index 1 = white
+    dst[0] = 0x00; dst[1] = 0x00; dst[2] = 0x00; dst[3] = 0xFF; // Black
+    dst[4] = 0xFF; dst[5] = 0xFF; dst[6] = 0xFF; dst[7] = 0xFF; // White
 
+    // Convert from vertical byte format to horizontal
     for (int y = 0; y < 32; y++) {
         for (int x = 0; x < 128; x++) {
-            int byte_idx = (y / 8) * 128 + x;
-            int bit_idx = y % 8;
-            if (data[byte_idx] & (1 << bit_idx)) {
-                lv_canvas_set_px_color(cat_canvas, x, y, lv_color_white());
+            int src_byte = (y / 8) * 128 + x;
+            int src_bit = y % 8;
+            int dst_byte = 8 + y * 16 + x / 8;
+            int dst_bit = 7 - (x % 8);
+
+            if (src[src_byte] & (1 << src_bit)) {
+                dst[dst_byte] |= (1 << dst_bit);
+            } else {
+                dst[dst_byte] &= ~(1 << dst_bit);
             }
         }
     }
 }
 
-static void bongo_update_cb(struct k_work *work) {
-    if (is_tapping) {
-        draw_bongo(bongo_tap);
-        is_tapping = false;
-    } else {
-        draw_bongo(bongo_idle);
+static void update_display(struct k_work *work) {
+    if (is_tapping && !current_is_tap) {
+        convert_to_lvgl_format(bongo_tap, img_buf);
+        current_is_tap = true;
+        lv_img_set_src(cat_img, &img_dsc);
+    } else if (!is_tapping && current_is_tap) {
+        convert_to_lvgl_format(bongo_idle, img_buf);
+        current_is_tap = false;
+        lv_img_set_src(cat_img, &img_dsc);
     }
-    lv_obj_invalidate(cat_canvas);
+    is_tapping = false;
 }
 
-K_WORK_DEFINE(bongo_work, bongo_update_cb);
+K_WORK_DEFINE(bongo_work, update_display);
+
+static void reset_to_idle(struct k_work *work) {
+    is_tapping = false;
+    k_work_submit_to_queue(zmk_display_work_q(), &bongo_work);
+}
+
+K_WORK_DELAYABLE_DEFINE(idle_work, reset_to_idle);
 
 static int bongo_event_listener(const zmk_event_t *eh) {
     const struct zmk_keycode_state_changed *ev = as_zmk_keycode_state_changed(eh);
     if (ev && ev->state) {
         is_tapping = true;
-        k_work_submit(&bongo_work);
+        k_work_submit_to_queue(zmk_display_work_q(), &bongo_work);
+        k_work_reschedule_for_queue(zmk_display_work_q(), &idle_work, K_MSEC(200));
     }
     return ZMK_EV_EVENT_BUBBLE;
 }
@@ -129,13 +150,20 @@ ZMK_SUBSCRIPTION(bongo_cat, zmk_keycode_state_changed);
 static int bongo_cat_init(void) {
     lv_obj_t *screen = lv_scr_act();
 
-    cat_canvas = lv_canvas_create(screen);
-    lv_canvas_set_buffer(cat_canvas, cbuf, 128, 32, LV_IMG_CF_INDEXED_1BIT);
-    lv_canvas_set_palette(cat_canvas, 0, lv_color_black());
-    lv_canvas_set_palette(cat_canvas, 1, lv_color_white());
-    lv_obj_center(cat_canvas);
+    // Initialize image descriptor
+    img_dsc.header.cf = LV_IMG_CF_INDEXED_1BIT;
+    img_dsc.header.w = 128;
+    img_dsc.header.h = 32;
+    img_dsc.data_size = sizeof(img_buf);
+    img_dsc.data = img_buf;
 
-    draw_bongo(bongo_idle);
+    // Convert initial frame
+    convert_to_lvgl_format(bongo_idle, img_buf);
+
+    // Create image object
+    cat_img = lv_img_create(screen);
+    lv_img_set_src(cat_img, &img_dsc);
+    lv_obj_center(cat_img);
 
     return 0;
 }
