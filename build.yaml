@@ -1,4 +1,4 @@
 ---
 include:
   - board: xiao_ble
-    shield: oled_test nice_oled
+    shield: oled_test
