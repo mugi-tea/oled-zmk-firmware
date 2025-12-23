@@ -49,26 +49,31 @@ static const uint8_t bongo_cat_both1_data[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static void draw_bongo_cat(lv_obj_t *canvas) {
-    lv_canvas_fill_bg(canvas, lv_color_black(), LV_OPA_COVER);
+// Canvas buffer - L8 format needs 1 byte per pixel
+static uint8_t canvas_buf[IMG_WIDTH * IMG_HEIGHT];
 
+static void draw_bongo_cat(lv_obj_t *canvas) {
+    // Fill with black first
+    memset(canvas_buf, 0x00, sizeof(canvas_buf));
+
+    // Draw white pixels where bitmap has 1s
     for (int y = 0; y < IMG_HEIGHT; y++) {
         for (int x = 0; x < IMG_WIDTH; x++) {
             int byte_idx = y * 7 + (x / 8);
             int bit_idx = 7 - (x % 8);
 
             if (bongo_cat_both1_data[byte_idx] & (1 << bit_idx)) {
-                lv_canvas_set_px(canvas, x, y, lv_color_white(), LV_OPA_COVER);
+                canvas_buf[y * IMG_WIDTH + x] = 0xFF;
             }
         }
     }
+
+    lv_obj_invalidate(canvas);
 }
 
 int zmk_widget_bongo_cat_init(struct zmk_widget_bongo_cat *widget, lv_obj_t *parent) {
-    static lv_color_t cbuf[LV_CANVAS_BUF_SIZE(IMG_WIDTH, IMG_HEIGHT, 1, 0)];
-
     widget->obj = lv_canvas_create(parent);
-    lv_canvas_set_buffer(widget->obj, cbuf, IMG_WIDTH, IMG_HEIGHT, LV_COLOR_FORMAT_L8);
+    lv_canvas_set_buffer(widget->obj, canvas_buf, IMG_WIDTH, IMG_HEIGHT, LV_COLOR_FORMAT_L8);
     lv_obj_center(widget->obj);
 
     draw_bongo_cat(widget->obj);
