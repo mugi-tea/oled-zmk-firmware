@@ -51,7 +51,6 @@
         display-offset = <0>;
         multiplex-ratio = <31>;
         segment-remap;
-        com-inverted;
         prechargep = <0x22>;
     };
 };
