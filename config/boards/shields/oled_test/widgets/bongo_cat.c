@@ -136,6 +136,13 @@ int zmk_widget_bongo_cat_init(struct zmk_widget_bongo_cat *widget, lv_obj_t *par
     widget->obj = lv_animimg_create(parent);
     lv_obj_center(widget->obj);
 
+    // Set initial animation
+    lv_animimg_set_src(widget->obj, SRC(idle_imgs));
+    lv_animimg_set_duration(widget->obj, ANIMATION_SPEED_IDLE);
+    lv_animimg_set_repeat_count(widget->obj, LV_ANIM_REPEAT_INFINITE);
+    lv_animimg_start(widget->obj);
+    current_anim_state = anim_state_idle;
+
     sys_slist_append(&widgets, &widget->node);
 
     widget_bongo_cat_init();
